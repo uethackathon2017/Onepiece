@@ -163,7 +163,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         countChildren = -1;
 
         account = new Account(FirebaseAuth.getInstance().getCurrentUser()
-                .getUid(), FirebaseAuth.getInstance().getCurrentUser().getEmail());
+                .getUid(), FirebaseAuth.getInstance().getCurrentUser().getEmail(), FirebaseAuth.getInstance().getCurrentUser().getDisplayName());
         account.setChat(false);
 
         // push values

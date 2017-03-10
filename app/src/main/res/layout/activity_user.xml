@@ -45,17 +45,30 @@
             android:layout_height="wrap_content"
             android:orientation="vertical" >
             <TextView
+                android:gravity="center"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:id="@+id/textViewName"
                 android:textStyle="bold"
                 android:textSize="30dp"/>
             <TextView
+                android:gravity="center"
                 android:layout_margin="10dp"
                 android:textSize="18dp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:id="@+id/textViewEmailUser"/>
+
+            <Button
+                android:textSize="18dp"
+                android:layout_marginTop="20dp"
+                android:textColor="@android:color/white"
+                android:textStyle="bold"
+                android:text="@string/chatnow"
+                android:layout_gravity="center"
+                android:layout_width="100dp"
+                android:layout_height="80dp"
+                android:background="@drawable/ic_chat_now"/>
         </LinearLayout>
     </ScrollView>
 

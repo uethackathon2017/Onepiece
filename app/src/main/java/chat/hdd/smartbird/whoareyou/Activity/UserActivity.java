@@ -1,7 +1,9 @@
 package chat.hdd.smartbird.whoareyou.Activity;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.CountDownTimer;
+import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -10,7 +12,12 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.firebase.ui.auth.AuthUI;
+import com.google.android.gms.auth.api.Auth;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.UserInfo;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
@@ -25,6 +32,8 @@ import static chat.hdd.smartbird.whoareyou.Activity.MainActivity.ACCOUNT;
 import static chat.hdd.smartbird.whoareyou.Activity.MainActivity.SIGN_IN_REQUEST_CODE;
 
 public class UserActivity extends AppCompatActivity {
+    private static final int RC_SIGN_IN = 8888;
+
     @Bind(R.id.imageViewPictureUser)
     CircleImageView imgPictureUser;
     @Bind(R.id.textViewName)
@@ -37,6 +46,7 @@ public class UserActivity extends AppCompatActivity {
 
     private boolean isDoubleBackToExit = false;
     private Account account;
+    private String urlPhoto;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,6 +71,8 @@ public class UserActivity extends AppCompatActivity {
     }
 
     private void signInAccount() {
+
+
         account = new Account(FirebaseAuth.getInstance().getCurrentUser()
                 .getUid(), FirebaseAuth.getInstance().getCurrentUser().getEmail(), FirebaseAuth.getInstance().getCurrentUser().getDisplayName());
         account.setChat(true);
@@ -80,8 +92,44 @@ public class UserActivity extends AppCompatActivity {
             }
         });
 
+        for (UserInfo profile : FirebaseAuth.getInstance().getCurrentUser().getProviderData()) {
+            System.out.println(profile.getProviderId());
+            // check if the provider id matches "facebook.com"
+           if (profile.getProviderId().equals("google.com")) {
+                urlPhoto = profile.getProviderId();
+               loadGoogleUserDetails();
+            }
+        }
 
     }
+
+
+    public void loadGoogleUserDetails() {
+        try {
+            // Configure sign-in to request the user's ID, email address, and basic profile. ID and
+            // basic profile are included in DEFAULT_SIGN_IN.
+            GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                    .requestEmail()
+                    .build();
+
+            // Build a GoogleApiClient with access to GoogleSignIn.API and the options above.
+            GoogleApiClient mGoogleApiClient = new GoogleApiClient.Builder(this)
+                    .enableAutoManage(this, new GoogleApiClient.OnConnectionFailedListener() {
+                        @Override
+                        public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+                            System.out.println("onConnectionFailed");
+                        }
+                    })
+                    .addApi(Auth.GOOGLE_SIGN_IN_API, gso)
+                    .build();
+
+            Intent signInIntent = Auth.GoogleSignInApi.getSignInIntent(mGoogleApiClient);
+            startActivityForResult(signInIntent, RC_SIGN_IN);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
 
     @Override
     public void onBackPressed() {
