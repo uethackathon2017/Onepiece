@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "771210863059",
+    "firebase_url": "https://whoareyou-29cfa.firebaseio.com",
+    "project_id": "whoareyou-29cfa",
+    "storage_bucket": "whoareyou-29cfa.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:771210863059:android:b445e2ad402df4bd",
+        "android_client_info": {
+          "package_name": "chat.hdd.smartbird.whoareyou"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "771210863059-g5cab3rvf851mcvv2sjbqedsmq23i1bj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "chat.hdd.smartbird.whoareyou",
+            "certificate_hash": "1e022fec499b79e2632bb91e87ea050667f13b8d"
+          }
+        },
+        {
+          "client_id": "771210863059-4vnoqgup60nbabt85hpuvb1iaq3adt44.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBfuVrwhX-EAIKOzOptDqp7WCJAI4aVPdQ"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "771210863059-4vnoqgup60nbabt85hpuvb1iaq3adt44.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
