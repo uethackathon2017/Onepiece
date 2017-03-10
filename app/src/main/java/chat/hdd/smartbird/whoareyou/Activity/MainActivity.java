@@ -187,7 +187,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     accountOther.setChat(true);
                     account.setChat(true);
 
-                    accountReceive = new Account(accountOther.getId(), accountOther.getEmail());
+                    accountReceive = new Account(accountOther.getId(), accountOther.getEmail(), accountOther.getName());
                     accountReceive.setChat(accountOther.isChat());
 
                     FirebaseDatabase.getInstance().getReference().child(ACCOUNT).child(account.getId()).setValue(account, new DatabaseReference.CompletionListener() {
@@ -238,7 +238,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     accountOther.setChat(true);
                     account.setChat(true);
 
-                    accountReceive = new Account(accountOther.getId(), accountOther.getEmail());
+                    accountReceive = new Account(accountOther.getId(), accountOther.getEmail(), accountOther.getName());
                     accountReceive.setChat(accountOther.isChat());
 
                     FirebaseDatabase.getInstance().getReference().child(ACCOUNT).child(account.getId()).setValue(account, new DatabaseReference.CompletionListener() {
