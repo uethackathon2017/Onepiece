@@ -1,26 +1,181 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/content_main"
     android:layout_width="match_parent"
-    android:orientation="vertical"
     android:layout_height="match_parent"
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
     tools:context="chat.hdd.smartbird.whoareyou.Activity.MainActivity"
     tools:showIn="@layout/activity_main">
 
-<FrameLayout
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content">
-    <ImageView
-        android:layout_gravity="center"
-        android:layout_width="300dp"
-        android:layout_height="300dp"
-        android:background="@drawable/ic_winner"/>
-    <android.support.v4.widget.CircleImageView
-        android:layout_marginBottom="30dp"
-        android:layout_gravity="center"
-        android:layout_width="140dp"
-        android:layout_height="140dp" />
-</FrameLayout>
-</LinearLayout>
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        <ListView
+            android:layout_weight="1"
+            android:layout_marginRight="10dp"
+            android:layout_marginLeft="10dp"
+            android:id="@+id/list_of_message"
+            android:dividerHeight="3dp"
+            android:divider="@android:color/transparent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"></ListView>
+        <TextView
+            android:id="@+id/textViewNotify"
+            android:textSize="13dp"
+            android:textColor="@android:color/darker_gray"
+            android:layout_marginLeft="10dp"
+            android:layout_gravity="left"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+        <TextView
+            android:background="@android:color/darker_gray"
+            android:layout_width="match_parent"
+            android:layout_height="0.1dp" />
+        <LinearLayout
+            android:background="@android:color/white"
+            android:padding="10dp"
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+            <ImageView
+                android:src="@drawable/ic_smile"
+                android:layout_gravity="center_vertical"
+                android:layout_alignParentLeft="true"
+                android:layout_alignParentBottom="true"
+                android:padding="4dp"
+                android:id="@+id/emoji_button"
+                android:layout_width="40dp"
+                android:layout_height="40dp" />
+
+            <ImageView
+                android:src="@drawable/ic_image"
+                android:layout_gravity="center_vertical"
+                android:layout_alignParentLeft="true"
+                android:layout_alignParentBottom="true"
+                android:padding="4dp"
+                android:id="@+id/imageViewSendImage"
+                android:layout_width="40dp"
+                android:layout_height="40dp" />
+            <ScrollView
+
+                android:layout_weight="1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+                <LinearLayout
+                    android:orientation="vertical"
+
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
+
+                    <hani.momanii.supernova_emoji_library.Helper.EmojiconEditText
+                        android:id="@+id/emojicon_edit_text"
+
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="@string/write_message"
+                        android:maxHeight="100dp"
+                        android:textColorHint="@android:color/darker_gray"
+                        android:textStyle="normal"
+                        app:emojiconSize="18dp" />
+                </LinearLayout>
+            </ScrollView>
+
+            <ImageView
+                android:layout_gravity="center_vertical"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentBottom="true"
+                android:src="@drawable/ic_send"
+                android:paddingLeft="5dp"
+                android:id="@+id/submit_button"
+                android:layout_width="40dp"
+                android:layout_height="40dp" />
+        </LinearLayout>
+
+    </LinearLayout>
+    <FrameLayout
+        android:id="@+id/frame_loading"
+        android:background="#c6000000"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        <com.victor.loading.rotate.RotateLoading
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:id="@+id/rotateLoading"
+            android:layout_gravity="center"/>
+        <TextView
+            android:id="@+id/textViewPleaseWait"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="50dp"
+            android:layout_marginLeft="20dp"
+            android:layout_marginRight="20dp"
+            android:gravity="center"
+            android:text="@string/please_wait"
+            android:textSize="30dp"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:layout_gravity="center_horizontal"/>
+
+        <ImageView
+            android:layout_width="150dp"
+            android:layout_height="150dp"
+            android:background="@drawable/ic_cry"
+            android:layout_gravity="center"
+            android:id="@+id/imageViewCry"/>
+
+        <TextView
+            android:layout_marginLeft="20dp"
+            android:layout_marginRight="20dp"
+            android:layout_marginTop="100dp"
+            android:gravity="center"
+            android:layout_gravity="center"
+            android:id="@+id/textViewWaitChat"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/waiting_someone"
+            android:textColor="@android:color/white"
+            android:textSize="20dp" />
+    </FrameLayout>
+
+
+    <FrameLayout
+        android:id="@+id/frame_sendImage"
+        android:background="#c6000000"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:id="@+id/imageViewImageChoose"/>
+        <Button
+            android:background="@drawable/selector_button"
+            android:layout_margin="20dp"
+            android:layout_gravity="bottom|right"
+            android:id="@+id/buttonSendImage"
+            android:text="@string/send"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@android:color/white"
+            />
+        <Button
+            android:background="@drawable/selector_button"
+            android:layout_margin="20dp"
+            android:layout_gravity="left|bottom"
+            android:id="@+id/buttonCancelImage"
+            android:text="@string/cancel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@android:color/white"
+            />
+
+
+    </FrameLayout>
+
+</RelativeLayout>

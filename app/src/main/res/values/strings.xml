@@ -1,4 +1,18 @@
 <resources>
     <string name="app_name">Who are you?</string>
-    <string name="action_settings">Settings</string>
+    <string name="signout">Sign out</string>
+    <string name="write_message">Write message...</string>
+    <string name="notify_empty">messages empty</string>
+    <string name="notify_sending">sending...</string>
+    <string name="notify_sent">sent</string>
+    <string name="notify_error">messaging errors</string>
+    <string name="waiting_someone">Waiting for someone to chat</string>
+    <string name="exit_chat">Move the conversation to chat to another person</string>
+    <string name="sure">Are you sure?</string>
+    <string name="accept">Accept</string>
+    <string name="no">No</string>
+    <string name="please_wait">Please Wait...</string>
+    <string name="googbye">GOOGBYE\nsee you a gain</string>
+    <string name="send">Send</string>
+    <string name="cancel">Cancel</string>
 </resources>
