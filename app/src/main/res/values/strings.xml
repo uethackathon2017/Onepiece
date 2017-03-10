@@ -16,4 +16,5 @@
     <string name="send">Send</string>
     <string name="cancel">Cancel</string>
     <string name="chatnow">Chat now</string>
+    <string name="choose_picture">Choose picture</string>
 </resources>

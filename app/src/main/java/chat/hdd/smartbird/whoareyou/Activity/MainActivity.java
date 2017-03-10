@@ -10,6 +10,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.CountDownTimer;
+import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
 import android.support.design.widget.Snackbar;
@@ -33,20 +34,23 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.firebase.ui.auth.AuthUI;
 import com.firebase.ui.database.FirebaseListAdapter;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
 import com.victor.loading.rotate.RotateLoading;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Random;
 
 import chat.hdd.smartbird.whoareyou.Model.Account;
@@ -61,6 +65,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public static final String ACCOUNT = "ACCOUNT";
     private static final int SELECT_PICTURE = 3;
     private final static int GALLERY_KITKAT_INTENT_CALLED = 2;
+    public static final int REQUEST_CODE_CAMERA = 10;
 
     public static boolean isMask = false;
     public static int chooseMask = 0;
@@ -70,7 +75,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     // add emojicon
     private EmojiconEditText emojiconEditText;
-    private ImageView emojiButton, submitButton, imgCry, imgSendImage, imgChooseImage;
+    private ImageView emojiButton, submitButton, imgCry, imgSendImage, imgChooseImage, imgSendCamera;
     private EmojIconActions emojIconActions;
     private TextView tvNotify, tvWaitChat, tvPleaseWait;
     private RotateLoading rotateLoading;
@@ -81,16 +86,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private ArrayList<Account> listAccount;
     private ArrayList<String> listKeyAccount;
     private CountDownTimer countDownTimer;
-    private boolean isDoubleBackToExit = false;
     private static String keyAccount = "";
-    private static int numberZoom = 0;
+    private static int typeSendData = 0;
 
-    private boolean closeApp;
-    private boolean isLeave;
     private String filemanagerstring, imagePath, selectedImagePath;
 
     private Uri imageUri;
 
+    private FirebaseStorage storage;
+    private StorageReference storageRef;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -99,71 +103,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        closeApp = false;
-        isLeave = false;
 
-        activity_main = (RelativeLayout) findViewById(R.id.content_main);
-        listAccount = new ArrayList<Account>();
-        listKeyAccount = new ArrayList<String>();
-        rotateLoading = (RotateLoading) findViewById(R.id.rotateLoading);
-        frameLoading = (FrameLayout) findViewById(R.id.frame_loading);
-        rotateLoading.start();
-        tvWaitChat = (TextView)findViewById(R.id.textViewWaitChat);
-        tvPleaseWait = (TextView)findViewById(R.id.textViewPleaseWait);
-        imgCry = (ImageView)findViewById(R.id.imageViewCry);
-        imgCry.setVisibility(View.INVISIBLE);
-        imgSendImage = (ImageView)findViewById(R.id.imageViewSendImage);
-        imgSendImage.setOnClickListener(this);
-        btSendImage = (Button)findViewById(R.id.buttonSendImage);
-        btSendImage.setOnClickListener(this);
-        btCancelImage = (Button)findViewById(R.id.buttonCancelImage);
-        btCancelImage.setOnClickListener(this);
-        frameSendImage = (FrameLayout)findViewById(R.id.frame_sendImage);
-        frameSendImage.setVisibility(View.INVISIBLE);
-        imgChooseImage = (ImageView)findViewById(R.id.imageViewImageChoose);
+        initView();
 
 
-        Animation scale = AnimationUtils.loadAnimation(MainActivity.this, R.anim.scale);
-        tvPleaseWait.startAnimation(scale);
+        signInAccount();
 
-
-        // add emoji
-        emojiButton = (ImageView) findViewById(R.id.emoji_button);
-        emojiButton.setEnabled(false);
-        tvNotify = (TextView) findViewById(R.id.textViewNotify);
-        submitButton = (ImageView) findViewById(R.id.submit_button);
-        submitButton.setOnClickListener(this);
-        emojiconEditText = (EmojiconEditText) findViewById(R.id.emojicon_edit_text);
-        emojiconEditText.setEnabled(false);
-        emojIconActions = new EmojIconActions(MainActivity.this, activity_main, emojiButton, emojiconEditText);
-        emojIconActions.ShowEmojicon();
-
-
-        if (FirebaseAuth.getInstance().getCurrentUser() == null) {
-            startActivityForResult(AuthUI.getInstance().createSignInIntentBuilder().build(), SIGN_IN_REQUEST_CODE);
-
-        } else {
-            Snackbar.make(activity_main, "Welcome " + FirebaseAuth.getInstance().getCurrentUser().getEmail(), Snackbar.LENGTH_SHORT).show();
-            // load content
-            //displayChatMessage();
-            signInAccount();
-        }
+        storage = FirebaseStorage.getInstance("gs://whoareyou-29cfa.appspot.com");
+        storageRef =  storage.getReference();
 
     }
 
     private void signInAccount() {
+        // set toolbar
         getSupportActionBar().setTitle(FirebaseAuth.getInstance().getCurrentUser().getDisplayName());
         getSupportActionBar().setSubtitle(FirebaseAuth.getInstance().getCurrentUser().getEmail());
         getSupportActionBar().setHomeButtonEnabled(true);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setHomeAsUpIndicator(R.drawable.ic_chat_couple_2);
 
-        listKeyAccount.clear();
-        listAccount.clear();
-        countChildren = -1;
-
-        account = new Account(FirebaseAuth.getInstance().getCurrentUser()
-                .getUid(), FirebaseAuth.getInstance().getCurrentUser().getEmail(), FirebaseAuth.getInstance().getCurrentUser().getDisplayName());
         account.setChat(false);
 
         // push values
@@ -173,7 +131,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 if (databaseError != null) {
                     Snackbar.make(activity_main, "error", Snackbar.LENGTH_SHORT).show();
                 } else {
-                    Toast.makeText(MainActivity.this, "Login success", Toast.LENGTH_SHORT).show();
+//                    Toast.makeText(MainActivity.this, "Login success", Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -339,8 +297,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 messageSendUser = (TextView) v.findViewById(R.id.textView_send_message_user);
                 messageTime = (TextView) v.findViewById(R.id.textView_message_time);
                 messageSendTime = (TextView) v.findViewById(R.id.textView_send_message_time);
-                imgSend = (ImageView)v.findViewById(R.id.imageViewSend);
-                imgReceive = (ImageView)findViewById(R.id.imageViewReceive);
+                imgSend = (ImageView) v.findViewById(R.id.imageViewSend);
+                imgReceive = (ImageView) findViewById(R.id.imageViewReceive);
 
                 boolean isSend = false;
 
@@ -351,7 +309,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
 
                 if (isSend) {
-                    if(model.getMessageImage().equals("") || model.getMessageImage() == null){
+                    if (model.getMessageImage().equals("") || model.getMessageImage() == null) {
                         lnReceiveMessageTotal.setVisibility(View.GONE);
                         lnSendMessage.setVisibility(View.VISIBLE);
                         lnSendMessage.setBackgroundResource(R.drawable.in_message_bg);
@@ -359,7 +317,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         messageSendUser.setText(model.getMessageUser());
                         messageSendUser.setVisibility(View.GONE);
                         messageSendTime.setHint(android.text.format.DateFormat.format("HH:mm", model.getMessageTime()));
-                    }else{
+                    } else {
                         lnReceiveMessageTotal.setVisibility(View.GONE);
                         lnSendMessage.setVisibility(View.VISIBLE);
                         lnSendMessage.setBackgroundResource(R.drawable.in_message_bg);
@@ -375,7 +333,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     }
 
                 } else {
-                    if(model.getMessageImage().equals("") || model.getMessageImage() == null) {
+                    if (model.getMessageImage().equals("") || model.getMessageImage() == null) {
                         lnReceiveMessageTotal.setVisibility(View.VISIBLE);
                         lnReceiveMessage.setBackgroundResource(R.drawable.out_message_bg);
                         lnSendMessage.setVisibility(View.GONE);
@@ -384,7 +342,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         messageUser.setText(model.getMessageUser());
                         messageUser.setVisibility(View.GONE);
                         messageTime.setHint(android.text.format.DateFormat.format("HH:mm", model.getMessageTime()));
-                    }else{
+                    } else {
                         lnReceiveMessageTotal.setVisibility(View.VISIBLE);
                         lnReceiveMessage.setBackgroundResource(R.drawable.out_message_bg);
                         lnSendMessage.setVisibility(View.GONE);
@@ -422,7 +380,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             public void onChildRemoved(DataSnapshot dataSnapshot) {
 
                 String key = dataSnapshot.getKey();
-                if (key.equals(account.getId()+"-"+accountReceive.getId())){
+                if (key.equals(account.getId() + "-" + accountReceive.getId())) {
                     frameLoading.setVisibility(View.VISIBLE);
                     rotateLoading.setVisibility(View.INVISIBLE);
                     imgCry.setVisibility(View.VISIBLE);
@@ -437,7 +395,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         @Override
                         public void onTick(long l) {
                             time[0]--;
-                            tvWaitChat.setText("The other person has moved, the conversation will end in "+time[0]+" seconds");
+                            tvWaitChat.setText("The other person has moved, the conversation will end in " + time[0] + " seconds");
                         }
 
                         @Override
@@ -460,40 +418,38 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         });
 
 
-
-
-
-
     }
 
     private void exitApp() {
-        account.setChat(true);
-        FirebaseDatabase.getInstance().getReference().child(ACCOUNT).child(account.getId()).setValue(account);
-        if (accountReceive != null) {
-            FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(account.getId() + "-" + accountReceive.getId()).removeValue();
-            FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(accountReceive.getId() + "-" + account.getId()).removeValue();
+        AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+        builder.setTitle(R.string.sure);
+        builder.setIcon(R.drawable.exit_chat);
+        builder.setMessage(R.string.exit_chat);
+        builder.setNegativeButton(R.string.accept, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+//                    exitApp_2();
+                account.setChat(true);
+                FirebaseDatabase.getInstance().getReference().child(ACCOUNT).child(account.getId()).setValue(account);
+                if (accountReceive != null) {
+                    FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(account.getId() + "-" + accountReceive.getId()).removeValue();
+                    FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(accountReceive.getId() + "-" + account.getId()).removeValue();
+                }
+                dialogInterface.dismiss();
+                finish();
+            }
+        });
+        builder.setNeutralButton(R.string.no, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                dialogInterface.dismiss();
+            }
+        });
+        builder.show();
 
-        }
+
     }
 
-    private void exitApp_2() {
-        account.setChat(false);
-        FirebaseDatabase.getInstance().getReference().child(ACCOUNT).child(account.getId()).setValue(account);
-
-        if (accountReceive != null) {
-            accountReceive.setChat(true);
-            FirebaseDatabase.getInstance().getReference().child(ACCOUNT).child(accountReceive.getId()).setValue(accountReceive);
-            FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(account.getId() + "-" + accountReceive.getId()).removeValue();
-            FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(accountReceive.getId() + "-" + account.getId()).removeValue();
-        }
-        accountReceive = null;
-
-//        recreate();
-        Intent mIntent = new Intent(MainActivity.this, MainActivity.class);
-        mIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        mIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(mIntent);
-    }
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     @Override
@@ -527,12 +483,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
 
         }
+
+        // camera
+        if (requestCode == REQUEST_CODE_CAMERA && resultCode == RESULT_OK && data != null) {
+            Bitmap bitmap = (Bitmap) data.getExtras().get("data");
+            frameSendImage.setVisibility(View.VISIBLE);
+            imgChooseImage.setImageBitmap(bitmap);
+        }
     }
 
 
-    public byte[] imageView_To_Byte(ImageView imageView){
-        BitmapDrawable drawable = (BitmapDrawable)imageView.getDrawable();
-        Bitmap bitmap =     drawable.getBitmap();
+    public byte[] imageView_To_Byte(ImageView imageView) {
+        BitmapDrawable drawable = (BitmapDrawable) imageView.getDrawable();
+        Bitmap bitmap = drawable.getBitmap();
 
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
@@ -585,6 +548,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
 
             case R.id.imageViewSendImage:
+                typeSendData = 0;
                 if (Build.VERSION.SDK_INT < 19) {
                     Intent intent1 = new Intent();
                     intent1.setType("image/*");
@@ -605,43 +569,80 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
 
             case R.id.buttonSendImage:
-                frameSendImage.setVisibility(View.INVISIBLE);
-                byte[] byteArray = imageView_To_Byte(imgChooseImage);
-                String textImage = Base64.encodeToString(byteArray, Base64.DEFAULT);
-                if (account.isChat()) {
-                    if (emojiconEditText.getText().toString().equals("")) {
-                        tvNotify.setText(R.string.notify_sending);
-                        FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(account.getId() + "-" + accountReceive.getId()).push().setValue(new ChatMessage(emojiconEditText.getText().toString(),
-                                FirebaseAuth.getInstance().getCurrentUser().getEmail(), textImage), new DatabaseReference.CompletionListener() {
-                            @Override
-                            public void onComplete(DatabaseError databaseError, DatabaseReference databaseReference) {
-                                if (databaseError == null) {
-                                    hideNotify(R.string.notify_sent);
-                                } else {
-                                    hideNotify(R.string.notify_error);
+                if (typeSendData == 0) {
+                    frameSendImage.setVisibility(View.INVISIBLE);
+                    byte[] byteArray = imageView_To_Byte(imgChooseImage);
+                    String textImage = Base64.encodeToString(byteArray, Base64.DEFAULT);
+                    if (account.isChat()) {
+                        if (emojiconEditText.getText().toString().equals("")) {
+                            tvNotify.setText(R.string.notify_sending);
+                            FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(account.getId() + "-" + accountReceive.getId()).push().setValue(new ChatMessage(emojiconEditText.getText().toString(),
+                                    FirebaseAuth.getInstance().getCurrentUser().getEmail(), textImage), new DatabaseReference.CompletionListener() {
+                                @Override
+                                public void onComplete(DatabaseError databaseError, DatabaseReference databaseReference) {
+                                    if (databaseError == null) {
+                                        hideNotify(R.string.notify_sent);
+                                    } else {
+                                        hideNotify(R.string.notify_error);
+                                    }
                                 }
-                            }
-                        });
-                        FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(accountReceive.getId() + "-" + account.getId()).push().setValue(new ChatMessage(emojiconEditText.getText().toString(),
-                                FirebaseAuth.getInstance().getCurrentUser().getEmail(), textImage), new DatabaseReference.CompletionListener() {
-                            @Override
-                            public void onComplete(DatabaseError databaseError, DatabaseReference databaseReference) {
-                                if (databaseError == null) {
-                                    hideNotify(R.string.notify_sent);
-                                } else {
-                                    hideNotify(R.string.notify_error);
+                            });
+                            FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(accountReceive.getId() + "-" + account.getId()).push().setValue(new ChatMessage(emojiconEditText.getText().toString(),
+                                    FirebaseAuth.getInstance().getCurrentUser().getEmail(), textImage), new DatabaseReference.CompletionListener() {
+                                @Override
+                                public void onComplete(DatabaseError databaseError, DatabaseReference databaseReference) {
+                                    if (databaseError == null) {
+                                        hideNotify(R.string.notify_sent);
+                                    } else {
+                                        hideNotify(R.string.notify_error);
+                                    }
                                 }
-                            }
-                        });
+                            });
 
-                        emojiconEditText.setText("");
-                        emojiconEditText.requestFocus();
+                            emojiconEditText.setText("");
+                            emojiconEditText.requestFocus();
+                        } else {
+                            hideNotify(R.string.notify_empty);
+                        }
                     } else {
-                        hideNotify(R.string.notify_empty);
+                        Snackbar.make(activity_main, R.string.waiting_someone, Snackbar.LENGTH_SHORT).show();
                     }
-                } else {
-                    Snackbar.make(activity_main, R.string.waiting_someone, Snackbar.LENGTH_SHORT).show();
+                } else if (typeSendData == 1) {
+                    Calendar calendar = Calendar.getInstance();
+
+                    // Create a reference to "mountains.jpg"
+                    StorageReference mountainsRef = storageRef.child("image"+calendar.getTimeInMillis()+".png");
+
+                    // Get the data from an ImageView as bytes
+                    imgChooseImage.setDrawingCacheEnabled(true);
+                    imgChooseImage.buildDrawingCache();
+                    Bitmap bitmap = imgChooseImage.getDrawingCache();
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, baos);
+                    byte[] data = baos.toByteArray();
+
+                    UploadTask uploadTask = mountainsRef.putBytes(data);
+                    uploadTask.addOnFailureListener(new OnFailureListener() {
+                        @Override
+                        public void onFailure(@NonNull Exception exception) {
+                            // Handle unsuccessful uploads
+                            Toast.makeText(MainActivity.this, "Error send image", Toast.LENGTH_SHORT).show();
+                        }
+                    }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                        @Override
+                        public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                            // taskSnapshot.getMetadata() contains file metadata such as size, content-type, and download URL.
+                            Uri downloadUrl = taskSnapshot.getDownloadUrl();
+                            Toast.makeText(MainActivity.this, "Send image success", Toast.LENGTH_SHORT).show();
+                        }
+                    });
                 }
+
+                break;
+            case R.id.imageViewSendCamera:
+                typeSendData = 1;
+                Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                startActivityForResult(intent, REQUEST_CODE_CAMERA);
 
 
                 break;
@@ -666,8 +667,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (closeApp) exitApp_2();
-        else exitApp();
+        exitApp();
     }
 
 
@@ -684,38 +684,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_sign_out) {
-            AuthUI.getInstance().signOut(this).addOnCompleteListener(new OnCompleteListener<Void>() {
-                @Override
-                public void onComplete(@NonNull Task<Void> task) {
-                    Snackbar.make(activity_main, "You have been signed out", Snackbar.LENGTH_SHORT).show();
-                    finish();
-                }
-            });
-        }
         if (id == R.id.action_exit_chat) {
-            AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-            builder.setTitle(R.string.sure);
-            builder.setIcon(R.drawable.exit_chat);
-            builder.setMessage(R.string.exit_chat);
-            builder.setNegativeButton(R.string.accept, new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialogInterface, int i) {
-                    closeApp = true;
-                    exitApp_2();
-
-                    dialogInterface.dismiss();
-                }
-            });
-            builder.setNeutralButton(R.string.no, new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialogInterface, int i) {
-                    dialogInterface.dismiss();
-                }
-            });
-            builder.show();
+            exitApp();
 
         }
 
@@ -724,30 +694,64 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     protected void onResume() {
-        isDoubleBackToExit = false;
         super.onResume();
     }
 
     @Override
     public void onBackPressed() {
+        exitApp();
+    }
 
-        if (isDoubleBackToExit) {
-            super.onBackPressed();
-        } else {
-            this.isDoubleBackToExit = true;
-            Toast.makeText(MainActivity.this, "double click to exit", Toast.LENGTH_SHORT).show();
-            CountDownTimer countDownTimer = new CountDownTimer(2000, 1000) {
-                @Override
-                public void onTick(long l) {
+    // init view
+    private void initView() {
+        activity_main = (RelativeLayout) findViewById(R.id.content_main);
+        listAccount = new ArrayList<Account>();
+        listKeyAccount = new ArrayList<String>();
+        rotateLoading = (RotateLoading) findViewById(R.id.rotateLoading);
+        frameLoading = (FrameLayout) findViewById(R.id.frame_loading);
+        rotateLoading.start();
+        tvWaitChat = (TextView) findViewById(R.id.textViewWaitChat);
+        tvPleaseWait = (TextView) findViewById(R.id.textViewPleaseWait);
+        imgCry = (ImageView) findViewById(R.id.imageViewCry);
+        imgCry.setVisibility(View.INVISIBLE);
+        imgSendImage = (ImageView) findViewById(R.id.imageViewSendImage);
+        imgSendImage.setOnClickListener(this);
+        imgSendCamera = (ImageView) findViewById(R.id.imageViewSendCamera);
+        imgSendCamera.setOnClickListener(this);
+        btSendImage = (Button) findViewById(R.id.buttonSendImage);
+        btSendImage.setOnClickListener(this);
+        btCancelImage = (Button) findViewById(R.id.buttonCancelImage);
+        btCancelImage.setOnClickListener(this);
+        frameSendImage = (FrameLayout) findViewById(R.id.frame_sendImage);
+        frameSendImage.setVisibility(View.INVISIBLE);
+        imgChooseImage = (ImageView) findViewById(R.id.imageViewImageChoose);
 
-                }
 
-                @Override
-                public void onFinish() {
-                    isDoubleBackToExit = false;
-                }
-            }.start();
+        Animation scale = AnimationUtils.loadAnimation(MainActivity.this, R.anim.scale);
+        tvPleaseWait.startAnimation(scale);
+
+
+        // add emoji
+        emojiButton = (ImageView) findViewById(R.id.emoji_button);
+        emojiButton.setEnabled(false);
+        tvNotify = (TextView) findViewById(R.id.textViewNotify);
+        submitButton = (ImageView) findViewById(R.id.submit_button);
+        submitButton.setOnClickListener(this);
+        emojiconEditText = (EmojiconEditText) findViewById(R.id.emojicon_edit_text);
+        emojiconEditText.setEnabled(false);
+        emojIconActions = new EmojIconActions(MainActivity.this, activity_main, emojiButton, emojiconEditText);
+        emojIconActions.ShowEmojicon();
+
+        // get extra
+        Intent intent = getIntent();
+        if (intent.hasExtra("id")) {
+            account = new Account();
+            account.setId(intent.getStringExtra("id"));
+            account.setEmail(intent.getStringExtra("email"));
+            account.setName(intent.getStringExtra("name"));
+            account.setChat(intent.getBooleanExtra("ischat", false));
         }
+
     }
 
 }
