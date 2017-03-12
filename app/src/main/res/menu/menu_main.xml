@@ -2,11 +2,17 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     tools:context="chat.hdd.smartbird.chatcouplesmartbird.Activity.MainActivity">
-
     <item
-        android:icon="@drawable/exit_chat"
+        android:icon="@drawable/ic_add_friend"
+        android:id="@+id/action_add_friend"
+        android:orderInCategory="100"
+        android:title="@string/add_friend"
+        app:showAsAction="always" />
+    <item
+        android:icon="@drawable/ic_exit"
         android:id="@+id/action_exit_chat"
         android:orderInCategory="100"
         android:title="@string/exit_chat"
         app:showAsAction="always" />
+
 </menu>

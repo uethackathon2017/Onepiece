@@ -8,6 +8,12 @@
     <string name="notify_error">messaging errors</string>
     <string name="waiting_someone">Waiting for someone to chat</string>
     <string name="exit_chat">Move the conversation to chat to another person</string>
+    <string name="add_friend">Add friend</string>
+    <string name="add_friend_infor">Would you like to make friends with this person?</string>
+    <string name="become_friend">Two people have become friends</string>
+    <string name="invite_friend">Send friend request to this person</string>
+    <string name="receive_request_friend">You have a friend request</string>
+    <string name="refuse_request_friend">Refuse a friend request</string>
     <string name="sure">Are you sure?</string>
     <string name="accept">Accept</string>
     <string name="no">No</string>
@@ -17,4 +23,5 @@
     <string name="cancel">Cancel</string>
     <string name="chatnow">Chat now</string>
     <string name="choose_picture">Choose picture</string>
+    <string name="list_friend">Friend list</string>
 </resources>

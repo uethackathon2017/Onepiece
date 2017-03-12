@@ -4,20 +4,16 @@ import android.app.Activity;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.CountDownTimer;
-import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.Base64;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -34,6 +30,7 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.bumptech.glide.Glide;
 import com.firebase.ui.database.FirebaseListAdapter;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
@@ -55,6 +52,7 @@ import java.util.Random;
 
 import chat.hdd.smartbird.whoareyou.Model.Account;
 import chat.hdd.smartbird.whoareyou.Model.ChatMessage;
+import chat.hdd.smartbird.whoareyou.Model.Friend;
 import chat.hdd.smartbird.whoareyou.R;
 import hani.momanii.supernova_emoji_library.Actions.EmojIconActions;
 import hani.momanii.supernova_emoji_library.Helper.EmojiconEditText;
@@ -63,6 +61,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public static final int SIGN_IN_REQUEST_CODE = 1;
     public static final String CHAT_ROOM = "CHAT_ROOM";
     public static final String ACCOUNT = "ACCOUNT";
+    public static final String FRIEND = "FRIEND";
     private static final int SELECT_PICTURE = 3;
     private final static int GALLERY_KITKAT_INTENT_CALLED = 2;
     public static final int REQUEST_CODE_CAMERA = 10;
@@ -72,6 +71,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public static int countChildren = -1;
     private FirebaseListAdapter<ChatMessage> adapter;
     private RelativeLayout activity_main;
+    private Intent intent;
 
     // add emojicon
     private EmojiconEditText emojiconEditText;
@@ -87,14 +87,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private ArrayList<String> listKeyAccount;
     private CountDownTimer countDownTimer;
     private static String keyAccount = "";
-    private static int typeSendData = 0;
+    private int typeSendData = 0;
 
     private String filemanagerstring, imagePath, selectedImagePath;
 
-    private Uri imageUri;
+    private Friend friendReceive, friendSend;
+    private boolean isFriend = false;
 
     private FirebaseStorage storage;
     private StorageReference storageRef;
+    private String idListFriend = "";
+    private String arrayIDlistFriend[];
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -110,7 +113,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         signInAccount();
 
         storage = FirebaseStorage.getInstance("gs://whoareyou-29cfa.appspot.com");
-        storageRef =  storage.getReference();
+        storageRef = storage.getReference();
 
     }
 
@@ -123,6 +126,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         getSupportActionBar().setHomeAsUpIndicator(R.drawable.ic_chat_couple_2);
 
         account.setChat(false);
+
+        if (intent.hasExtra("friend_1")) {
+            idListFriend = intent.getStringExtra("friend_1");
+        }
+        if (intent.hasExtra("friend_2")) {
+            idListFriend = intent.getStringExtra("friend_2");
+            arrayIDlistFriend = idListFriend.split("-");
+        }
+
 
         // push values
         FirebaseDatabase.getInstance().getReference().child(ACCOUNT).child(account.getId()).setValue(account, new DatabaseReference.CompletionListener() {
@@ -148,15 +160,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     accountReceive = new Account(accountOther.getId(), accountOther.getEmail(), accountOther.getName());
                     accountReceive.setChat(accountOther.isChat());
 
+                    if (intent.hasExtra("friend_1")) {
+                        if (idListFriend.equals(accountReceive.getId())) {
+                            isFriend = true;
+                        } else isFriend = false;
+                    } else if (intent.hasExtra("friend_2")) {
+                        for (int i = 0; i < arrayIDlistFriend.length; i++) {
+                            if (arrayIDlistFriend[i].equals(accountReceive.getId())) {
+                                isFriend = true;
+                                return;
+                            }
+                        }
+                    }
+
                     FirebaseDatabase.getInstance().getReference().child(ACCOUNT).child(account.getId()).setValue(account, new DatabaseReference.CompletionListener() {
                         @Override
                         public void onComplete(DatabaseError databaseError, DatabaseReference databaseReference) {
                             if (databaseError == null) {
-
-
                                 FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(account.getId() + "-" + accountOther.getId()).push().setValue(new
                                         ChatMessage("hello", account.getEmail(), ""));
 
+                                // create friend temporaty
+                                createFriendTemporaty();
                                 //show message
                                 displayChatMessage();
                             } else {
@@ -181,8 +206,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             }
                         }
                     });
-
-
                 }
             }
 
@@ -199,6 +222,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     accountReceive = new Account(accountOther.getId(), accountOther.getEmail(), accountOther.getName());
                     accountReceive.setChat(accountOther.isChat());
 
+                    if (intent.hasExtra("friend_1")) {
+                        if (idListFriend.equals(accountReceive.getId())) {
+                            isFriend = true;
+                        } else isFriend = false;
+                    } else if (intent.hasExtra("friend_2")) {
+                        for (int i = 0; i < arrayIDlistFriend.length; i++) {
+                            if (arrayIDlistFriend[i].equals(accountReceive.getId())) {
+                                isFriend = true;
+                                return;
+                            }
+                        }
+                    }
+
                     FirebaseDatabase.getInstance().getReference().child(ACCOUNT).child(account.getId()).setValue(account, new DatabaseReference.CompletionListener() {
                         @Override
                         public void onComplete(DatabaseError databaseError, DatabaseReference databaseReference) {
@@ -206,6 +242,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                 FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(account.getId() + "-" + accountOther.getId()).push().setValue(new
                                         ChatMessage("hello", account.getEmail(), ""));
 
+                                // create friend temporaty
+                                createFriendTemporaty();
                                 //show message
                                 displayChatMessage();
                             } else {
@@ -252,6 +290,393 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         });
 
+    }
+
+
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == SIGN_IN_REQUEST_CODE) {
+            if (resultCode == RESULT_OK) {
+                Snackbar.make(activity_main, "Successfully signed in Welcome", Snackbar.LENGTH_SHORT).show();
+                // load content
+                //displayChatMessage();
+                signInAccount();
+            } else {
+                Snackbar.make(activity_main, "We couldn't sign in. Please try again latter", Snackbar.LENGTH_SHORT).show();
+                finish();
+            }
+        }
+        if (resultCode == Activity.RESULT_OK) {
+            if (requestCode == SELECT_PICTURE) {
+                frameSendImage.setVisibility(View.VISIBLE);
+                Uri selectedImageUri = data.getData();
+                Log.d("chonanhdaidien", "uri " + selectedImageUri.toString());
+
+                imgChooseImage.setImageURI(selectedImageUri);
+            } else if (requestCode == GALLERY_KITKAT_INTENT_CALLED) {
+                frameSendImage.setVisibility(View.VISIBLE);
+                Uri originalUri = null;
+                originalUri = data.getData();
+                imgChooseImage.setImageURI(originalUri);
+
+            }
+
+        }
+        // camera
+        if (requestCode == REQUEST_CODE_CAMERA && resultCode == RESULT_OK && data != null) {
+            Bitmap bitmap = (Bitmap) data.getExtras().get("data");
+            frameSendImage.setVisibility(View.VISIBLE);
+            imgChooseImage.setImageBitmap(bitmap);
+        }
+    }
+
+
+    // create friend values
+    private void createFriendTemporaty() {
+        if(!isFriend) {
+            FirebaseDatabase.getInstance().getReference().child(FRIEND).child(account.getId()).child(accountReceive.getId()).setValue(new Friend(
+                    accountReceive.getId(), accountReceive.getEmail(), accountReceive.getName(), false, false));
+            FirebaseDatabase.getInstance().getReference().child(FRIEND).child(accountReceive.getId()).child(account.getId()).setValue(new Friend(
+                    account.getId(), account.getEmail(), account.getName(), false, false));
+        }
+        FirebaseDatabase.getInstance().getReference().child(FRIEND).child(account.getId()).addChildEventListener(new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+                Log.d("receive_2", "1");
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+                Log.d("receive_2", "2");
+                Friend friendOther = dataSnapshot.getValue(Friend.class);
+                if (friendOther.getIdFriend().equals(accountReceive.getId())) {
+                    Log.d("friendreceive", friendOther.getNameFriend());
+                    friendSend = new Friend(friendOther.getIdFriend(), friendOther.getEmailFriend(), friendOther.getNameFriend(),
+                            friendOther.isRequest(), friendOther.isFriend());
+                    // if you received request friend
+                    //if (friendSend.isRequest() && !friendSend.isFriend()) {
+
+
+                       // receiveRequestFriend();
+
+
+//                    } else if (friendSend.isRequest() && friendSend.isFriend()) {
+//                        Toast.makeText(MainActivity.this, R.string.become_friend, Toast.LENGTH_SHORT).show();
+//                        isFriend = true;
+//                    }
+                    //else
+                        if (!friendSend.isRequest() && !friendSend.isFriend()) {
+                        Toast.makeText(MainActivity.this, R.string.refuse_request_friend, Toast.LENGTH_SHORT).show();
+                    }
+                }
+
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+                Log.d("receive_2", "3");
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+                Log.d("receive_2", "4");
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                Log.d("receive_2", "5");
+            }
+        });
+
+        // account receive
+        FirebaseDatabase.getInstance().getReference().child(FRIEND).child(accountReceive.getId()).addChildEventListener(new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+                Log.d("receive_1", "1");
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+                Log.d("receive_1", "2");
+                Friend friendOther = dataSnapshot.getValue(Friend.class);
+                if (friendOther.getIdFriend().equals(account.getId())) {
+                    friendReceive = new Friend(friendOther.getIdFriend(), friendOther.getEmailFriend(), friendOther.getNameFriend(),
+                            friendOther.isRequest(), friendOther.isFriend());
+                    // if you received request friend
+                    if (friendReceive.isRequest() && !friendReceive.isFriend()) {
+                        receiveRequestFriend();
+                    } else if (friendReceive.isRequest() && friendReceive.isFriend()) {
+                        Toast.makeText(MainActivity.this, R.string.become_friend, Toast.LENGTH_SHORT).show();
+                        isFriend = true;
+                    }
+//                    else if (!friendReceive.isRequest() && !friendReceive.isFriend()) {
+//                        Toast.makeText(MainActivity.this, R.string.refuse_request_friend, Toast.LENGTH_SHORT).show();
+//                    }
+                }
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+                Log.d("receive_1", "3");
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+                Log.d("receive_1", "4");
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                Log.d("receive_1", "5");
+            }
+        });
+
+    }
+
+    // you receive request friend
+    private void receiveRequestFriend() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+        builder.setIcon(R.drawable.ic_add_friend);
+        builder.setTitle(R.string.add_friend);
+        builder.setCancelable(false);
+        builder.setMessage(R.string.receive_request_friend);
+        builder.setNegativeButton(R.string.accept, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                // if accept request friend
+                FirebaseDatabase.getInstance().getReference().child(FRIEND).child(account.getId()).child(accountReceive.getId()).setValue(new Friend(
+                        accountReceive.getId(), accountReceive.getEmail(), accountReceive.getName(), true, true
+                ));
+                FirebaseDatabase.getInstance().getReference().child(FRIEND).child(accountReceive.getId()).child(account.getId()).setValue(new Friend(
+                        account.getId(), account.getEmail(), account.getName(), true, true), new DatabaseReference.CompletionListener() {
+                    @Override
+                    public void onComplete(DatabaseError databaseError, DatabaseReference databaseReference) {
+                        if (databaseError == null) {
+                            Toast.makeText(MainActivity.this, R.string.become_friend, Toast.LENGTH_SHORT).show();
+                            isFriend = true;
+                        } else {
+                            Toast.makeText(MainActivity.this, "Error", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
+
+                dialogInterface.dismiss();
+            }
+        });
+        builder.setNeutralButton(R.string.no, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                // if no accept request friend
+                FirebaseDatabase.getInstance().getReference().child(FRIEND).child(accountReceive.getId()).child(account.getId()).setValue(new Friend(
+                        account.getId(), account.getEmail(), account.getName(), false, false
+                ));
+                dialogInterface.dismiss();
+            }
+        });
+        builder.show();
+    }
+
+    // you send request friend
+    private void sendRequestFriend() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+        builder.setTitle(R.string.add_friend);
+        builder.setIcon(R.drawable.ic_add_friend);
+        builder.setMessage(R.string.add_friend_infor);
+        builder.setNegativeButton(R.string.accept, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                // if accept request friend
+                FirebaseDatabase.getInstance().getReference().child(FRIEND).child(account.getId()).child(accountReceive.getId()).setValue(new Friend(
+                        accountReceive.getId(), accountReceive.getEmail(), accountReceive.getName(), true, false
+                ));
+
+
+                dialogInterface.dismiss();
+            }
+        });
+        builder.setNeutralButton(R.string.no, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+
+                dialogInterface.dismiss();
+            }
+        });
+        builder.show();
+    }
+
+    @Override
+    public void onClick(View view) {
+        int id = view.getId();
+        switch (id) {
+            case R.id.submit_button:
+                // check account chat = true;
+                if (account.isChat()) {
+                    if (!emojiconEditText.getText().toString().equals("")) {
+                        tvNotify.setText(R.string.notify_sending);
+                        FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(account.getId() + "-" + accountReceive.getId()).push().setValue(new ChatMessage(emojiconEditText.getText().toString(),
+                                FirebaseAuth.getInstance().getCurrentUser().getEmail(), ""), new DatabaseReference.CompletionListener() {
+                            @Override
+                            public void onComplete(DatabaseError databaseError, DatabaseReference databaseReference) {
+                                if (databaseError == null) {
+                                    hideNotify(R.string.notify_sent);
+                                } else {
+                                    hideNotify(R.string.notify_error);
+                                }
+                            }
+                        });
+                        FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(accountReceive.getId() + "-" + account.getId()).push().setValue(new ChatMessage(emojiconEditText.getText().toString(),
+                                FirebaseAuth.getInstance().getCurrentUser().getEmail(), ""), new DatabaseReference.CompletionListener() {
+                            @Override
+                            public void onComplete(DatabaseError databaseError, DatabaseReference databaseReference) {
+                                if (databaseError == null) {
+                                    hideNotify(R.string.notify_sent);
+                                } else {
+                                    hideNotify(R.string.notify_error);
+                                }
+                            }
+                        });
+
+                        emojiconEditText.setText("");
+                        emojiconEditText.requestFocus();
+                    } else {
+                        hideNotify(R.string.notify_empty);
+                    }
+                } else {
+                    Snackbar.make(activity_main, R.string.waiting_someone, Snackbar.LENGTH_SHORT).show();
+                }
+                break;
+
+            case R.id.buttonCancelImage:
+                frameSendImage.setVisibility(View.INVISIBLE);
+
+                break;
+
+            case R.id.buttonSendImage:
+                if (typeSendData == 0) {
+                    frameSendImage.setVisibility(View.INVISIBLE);
+
+                    Calendar calendar = Calendar.getInstance();
+
+                    // Create a reference to "mountains.jpg"
+                    StorageReference mountainsRef = storageRef.child("image" + calendar.getTimeInMillis() + ".png");
+
+                    // Get the data from an ImageView as bytes
+                    imgChooseImage.setDrawingCacheEnabled(true);
+                    imgChooseImage.buildDrawingCache();
+                    Bitmap bitmap = imgChooseImage.getDrawingCache();
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, baos);
+                    byte[] data = baos.toByteArray();
+
+                    UploadTask uploadTask = mountainsRef.putBytes(data);
+                    uploadTask.addOnFailureListener(new OnFailureListener() {
+                        @Override
+                        public void onFailure(@NonNull Exception exception) {
+                            // Handle unsuccessful uploads
+                            Toast.makeText(MainActivity.this, "Error send image", Toast.LENGTH_SHORT).show();
+                        }
+                    }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                        @Override
+                        public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                            // taskSnapshot.getMetadata() contains file metadata such as size, content-type, and download URL.
+                            Uri downloadUrl = taskSnapshot.getDownloadUrl();
+                            if (account.isChat()) {
+                                if (emojiconEditText.getText().toString().equals("")) {
+                                    tvNotify.setText(R.string.notify_sending);
+                                    FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(account.getId() + "-" + accountReceive.getId()).push().setValue(new ChatMessage(emojiconEditText.getText().toString(),
+                                            FirebaseAuth.getInstance().getCurrentUser().getEmail(), String.valueOf(downloadUrl)), new DatabaseReference.CompletionListener() {
+                                        @Override
+                                        public void onComplete(DatabaseError databaseError, DatabaseReference databaseReference) {
+                                            if (databaseError == null) {
+                                                hideNotify(R.string.notify_sent);
+                                            } else {
+                                                hideNotify(R.string.notify_error);
+                                            }
+                                        }
+                                    });
+                                    FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(accountReceive.getId() + "-" + account.getId()).push().setValue(new ChatMessage(emojiconEditText.getText().toString(),
+                                            FirebaseAuth.getInstance().getCurrentUser().getEmail(), String.valueOf(downloadUrl)), new DatabaseReference.CompletionListener() {
+                                        @Override
+                                        public void onComplete(DatabaseError databaseError, DatabaseReference databaseReference) {
+                                            if (databaseError == null) {
+                                                hideNotify(R.string.notify_sent);
+                                            } else {
+                                                hideNotify(R.string.notify_error);
+                                            }
+                                        }
+                                    });
+
+                                    emojiconEditText.setText("");
+                                    emojiconEditText.requestFocus();
+                                } else {
+                                    hideNotify(R.string.notify_empty);
+                                }
+                            } else {
+                                Snackbar.make(activity_main, R.string.waiting_someone, Snackbar.LENGTH_SHORT).show();
+                            }
+                        }
+                    });
+
+
+                } else if (typeSendData == 1) {
+                    frameSendImage.setVisibility(View.INVISIBLE);
+
+                    Calendar calendar = Calendar.getInstance();
+
+                    // Create a reference to "mountains.jpg"
+                    StorageReference mountainsRef = storageRef.child("image" + calendar.getTimeInMillis() + ".png");
+
+                    // Get the data from an ImageView as bytes
+                    imgChooseImage.setDrawingCacheEnabled(true);
+                    imgChooseImage.buildDrawingCache();
+                    Bitmap bitmap = imgChooseImage.getDrawingCache();
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, baos);
+                    byte[] data = baos.toByteArray();
+
+                    UploadTask uploadTask = mountainsRef.putBytes(data);
+                    uploadTask.addOnFailureListener(new OnFailureListener() {
+                        @Override
+                        public void onFailure(@NonNull Exception exception) {
+                            // Handle unsuccessful uploads
+                            Toast.makeText(MainActivity.this, "Error send image", Toast.LENGTH_SHORT).show();
+                        }
+                    }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                        @Override
+                        public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                            // taskSnapshot.getMetadata() contains file metadata such as size, content-type, and download URL.
+                            Uri downloadUrl = taskSnapshot.getDownloadUrl();
+                            Toast.makeText(MainActivity.this, "Send image success", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+
+                break;
+            case R.id.imageViewSendImage:
+                typeSendData = 0;
+                if (Build.VERSION.SDK_INT < 19) {
+                    Intent intent1 = new Intent();
+                    intent1.setType("image/*");
+                    intent1.setAction(Intent.ACTION_GET_CONTENT);
+                    startActivityForResult(Intent.createChooser(intent1, "Choose Image"), SELECT_PICTURE);
+                } else {
+                    Intent intent2 = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                    intent2.addCategory(Intent.CATEGORY_OPENABLE);
+                    intent2.setType("image/*");
+                    startActivityForResult(intent2, GALLERY_KITKAT_INTENT_CALLED);
+                }
+
+                break;
+            case R.id.imageViewSendCamera:
+                typeSendData = 1;
+                Intent intent = new Intent("android.media.action.IMAGE_CAPTURE");
+                startActivityForResult(intent, REQUEST_CODE_CAMERA);
+
+
+                break;
+        }
     }
 
     private void displayChatMessage() {
@@ -309,53 +734,31 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
 
                 if (isSend) {
-                    if (model.getMessageImage().equals("") || model.getMessageImage() == null) {
-                        lnReceiveMessageTotal.setVisibility(View.GONE);
-                        lnSendMessage.setVisibility(View.VISIBLE);
-                        lnSendMessage.setBackgroundResource(R.drawable.in_message_bg);
-                        messageSendText.setText(model.getMessageText());
-                        messageSendUser.setText(model.getMessageUser());
-                        messageSendUser.setVisibility(View.GONE);
-                        messageSendTime.setHint(android.text.format.DateFormat.format("HH:mm", model.getMessageTime()));
-                    } else {
-                        lnReceiveMessageTotal.setVisibility(View.GONE);
-                        lnSendMessage.setVisibility(View.VISIBLE);
-                        lnSendMessage.setBackgroundResource(R.drawable.in_message_bg);
-                        messageSendText.setText(model.getMessageText());
-                        messageSendUser.setText(model.getMessageUser());
-                        messageSendUser.setVisibility(View.GONE);
-                        messageSendTime.setHint(android.text.format.DateFormat.format("HH:mm", model.getMessageTime()));
+                    lnReceiveMessageTotal.setVisibility(View.GONE);
+                    lnSendMessage.setVisibility(View.VISIBLE);
+                    lnSendMessage.setBackgroundResource(R.drawable.in_message_bg);
+                    messageSendText.setText(model.getMessageText());
+                    messageSendUser.setText(model.getMessageUser());
+                    messageSendUser.setVisibility(View.GONE);
+                    messageSendTime.setHint(android.text.format.DateFormat.format("HH:mm", model.getMessageTime()));
 
-                        byte[] byteArray = Base64.decode(model.getMessageImage(), Base64.DEFAULT);
-                        Bitmap bitmap = BitmapFactory.decodeByteArray(byteArray, 0, byteArray.length);
-                        imgSend.setImageBitmap(bitmap);
-
-                    }
-
+                    if (!model.getMessageImage().equals(""))
+                        Glide.with(MainActivity.this).load(model.getMessageImage()).
+                                override(200, 200).fitCenter().into(imgSend);
                 } else {
-                    if (model.getMessageImage().equals("") || model.getMessageImage() == null) {
-                        lnReceiveMessageTotal.setVisibility(View.VISIBLE);
-                        lnReceiveMessage.setBackgroundResource(R.drawable.out_message_bg);
-                        lnSendMessage.setVisibility(View.GONE);
-                        messageText.setText(model.getMessageText());
+                    lnReceiveMessageTotal.setVisibility(View.VISIBLE);
+                    lnReceiveMessage.setBackgroundResource(R.drawable.out_message_bg);
+                    lnSendMessage.setVisibility(View.GONE);
+                    messageText.setText(model.getMessageText());
+                    messageUser.setText(accountReceive.getName());
+                    if (!isFriend) messageUser.setVisibility(View.GONE);
+                    else messageUser.setVisibility(View.VISIBLE);
+                    messageTime.setHint(android.text.format.DateFormat.format("HH:mm", model.getMessageTime()));
 
-                        messageUser.setText(model.getMessageUser());
-                        messageUser.setVisibility(View.GONE);
-                        messageTime.setHint(android.text.format.DateFormat.format("HH:mm", model.getMessageTime()));
-                    } else {
-                        lnReceiveMessageTotal.setVisibility(View.VISIBLE);
-                        lnReceiveMessage.setBackgroundResource(R.drawable.out_message_bg);
-                        lnSendMessage.setVisibility(View.GONE);
-                        messageText.setText(model.getMessageText());
-                        messageUser.setText(model.getMessageUser());
-                        messageUser.setVisibility(View.GONE);
-                        messageTime.setHint(android.text.format.DateFormat.format("HH:mm", model.getMessageTime()));
+                    if (!model.getMessageImage().equals(""))
+                        Glide.with(MainActivity.this).load(model.getMessageImage()).
+                                override(200, 200).fitCenter().into(imgReceive);
 
-                        byte[] byteArray = Base64.decode(model.getMessageImage(), Base64.DEFAULT);
-                        Bitmap bitmap = BitmapFactory.decodeByteArray(byteArray, 0, byteArray.length);
-                        imgReceive.setImageBitmap(bitmap);
-
-                    }
 
                 }
 
@@ -400,6 +803,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                         @Override
                         public void onFinish() {
+                            startActivity(new Intent(MainActivity.this, UserActivity.class));
                             finish();
                         }
                     }.start();
@@ -428,14 +832,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         builder.setNegativeButton(R.string.accept, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
-//                    exitApp_2();
                 account.setChat(true);
                 FirebaseDatabase.getInstance().getReference().child(ACCOUNT).child(account.getId()).setValue(account);
                 if (accountReceive != null) {
                     FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(account.getId() + "-" + accountReceive.getId()).removeValue();
                     FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(accountReceive.getId() + "-" + account.getId()).removeValue();
+                    if (!isFriend) {
+                        FirebaseDatabase.getInstance().getReference().child(FRIEND).child(account.getId()).child(accountReceive.getId()).removeValue();
+                        FirebaseDatabase.getInstance().getReference().child(FRIEND).child(accountReceive.getId()).child(account.getId()).removeValue();
+                    }
                 }
                 dialogInterface.dismiss();
+                startActivity(new Intent(MainActivity.this, UserActivity.class));
                 finish();
             }
         });
@@ -448,248 +856,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         builder.show();
 
 
-    }
-
-
-    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == SIGN_IN_REQUEST_CODE) {
-            if (resultCode == RESULT_OK) {
-                Snackbar.make(activity_main, "Successfully signed in Welcome", Snackbar.LENGTH_SHORT).show();
-                // load content
-                //displayChatMessage();
-                signInAccount();
-            } else {
-                Snackbar.make(activity_main, "We couldn't sign in. Please try again latter", Snackbar.LENGTH_SHORT).show();
-                finish();
-            }
-        }
-        if (resultCode == Activity.RESULT_OK) {
-            if (requestCode == SELECT_PICTURE) {
-                frameSendImage.setVisibility(View.VISIBLE);
-                Uri selectedImageUri = data.getData();
-                Log.d("chonanhdaidien", "uri " + selectedImageUri.toString());
-
-
-                imgChooseImage.setImageURI(selectedImageUri);
-            } else if (requestCode == GALLERY_KITKAT_INTENT_CALLED) {
-                frameSendImage.setVisibility(View.VISIBLE);
-                Uri originalUri = null;
-                originalUri = data.getData();
-                imgChooseImage.setImageURI(originalUri);
-
-            }
-
-        }
-
-        // camera
-        if (requestCode == REQUEST_CODE_CAMERA && resultCode == RESULT_OK && data != null) {
-            Bitmap bitmap = (Bitmap) data.getExtras().get("data");
-            frameSendImage.setVisibility(View.VISIBLE);
-            imgChooseImage.setImageBitmap(bitmap);
-        }
-    }
-
-
-    public byte[] imageView_To_Byte(ImageView imageView) {
-        BitmapDrawable drawable = (BitmapDrawable) imageView.getDrawable();
-        Bitmap bitmap = drawable.getBitmap();
-
-        ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
-        byte[] byteArray = stream.toByteArray();
-        return byteArray;
-
-    }
-
-    @Override
-    public void onClick(View view) {
-        int id = view.getId();
-        switch (id) {
-            case R.id.submit_button:
-                // check account chat = true;
-                if (account.isChat()) {
-                    if (!emojiconEditText.getText().toString().equals("")) {
-                        tvNotify.setText(R.string.notify_sending);
-                        FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(account.getId() + "-" + accountReceive.getId()).push().setValue(new ChatMessage(emojiconEditText.getText().toString(),
-                                FirebaseAuth.getInstance().getCurrentUser().getEmail(), ""), new DatabaseReference.CompletionListener() {
-                            @Override
-                            public void onComplete(DatabaseError databaseError, DatabaseReference databaseReference) {
-                                if (databaseError == null) {
-                                    hideNotify(R.string.notify_sent);
-                                } else {
-                                    hideNotify(R.string.notify_error);
-                                }
-                            }
-                        });
-                        FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(accountReceive.getId() + "-" + account.getId()).push().setValue(new ChatMessage(emojiconEditText.getText().toString(),
-                                FirebaseAuth.getInstance().getCurrentUser().getEmail(), ""), new DatabaseReference.CompletionListener() {
-                            @Override
-                            public void onComplete(DatabaseError databaseError, DatabaseReference databaseReference) {
-                                if (databaseError == null) {
-                                    hideNotify(R.string.notify_sent);
-                                } else {
-                                    hideNotify(R.string.notify_error);
-                                }
-                            }
-                        });
-
-                        emojiconEditText.setText("");
-                        emojiconEditText.requestFocus();
-                    } else {
-                        hideNotify(R.string.notify_empty);
-                    }
-                } else {
-                    Snackbar.make(activity_main, R.string.waiting_someone, Snackbar.LENGTH_SHORT).show();
-                }
-
-                break;
-
-            case R.id.imageViewSendImage:
-                typeSendData = 0;
-                if (Build.VERSION.SDK_INT < 19) {
-                    Intent intent1 = new Intent();
-                    intent1.setType("image/*");
-                    intent1.setAction(Intent.ACTION_GET_CONTENT);
-                    startActivityForResult(Intent.createChooser(intent1, "Choose Image"), SELECT_PICTURE);
-                } else {
-                    Intent intent2 = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-                    intent2.addCategory(Intent.CATEGORY_OPENABLE);
-                    intent2.setType("image/*");
-                    startActivityForResult(intent2, GALLERY_KITKAT_INTENT_CALLED);
-                }
-
-                break;
-
-            case R.id.buttonCancelImage:
-                frameSendImage.setVisibility(View.INVISIBLE);
-
-                break;
-
-            case R.id.buttonSendImage:
-                if (typeSendData == 0) {
-                    frameSendImage.setVisibility(View.INVISIBLE);
-                    byte[] byteArray = imageView_To_Byte(imgChooseImage);
-                    String textImage = Base64.encodeToString(byteArray, Base64.DEFAULT);
-                    if (account.isChat()) {
-                        if (emojiconEditText.getText().toString().equals("")) {
-                            tvNotify.setText(R.string.notify_sending);
-                            FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(account.getId() + "-" + accountReceive.getId()).push().setValue(new ChatMessage(emojiconEditText.getText().toString(),
-                                    FirebaseAuth.getInstance().getCurrentUser().getEmail(), textImage), new DatabaseReference.CompletionListener() {
-                                @Override
-                                public void onComplete(DatabaseError databaseError, DatabaseReference databaseReference) {
-                                    if (databaseError == null) {
-                                        hideNotify(R.string.notify_sent);
-                                    } else {
-                                        hideNotify(R.string.notify_error);
-                                    }
-                                }
-                            });
-                            FirebaseDatabase.getInstance().getReference().child(CHAT_ROOM).child(accountReceive.getId() + "-" + account.getId()).push().setValue(new ChatMessage(emojiconEditText.getText().toString(),
-                                    FirebaseAuth.getInstance().getCurrentUser().getEmail(), textImage), new DatabaseReference.CompletionListener() {
-                                @Override
-                                public void onComplete(DatabaseError databaseError, DatabaseReference databaseReference) {
-                                    if (databaseError == null) {
-                                        hideNotify(R.string.notify_sent);
-                                    } else {
-                                        hideNotify(R.string.notify_error);
-                                    }
-                                }
-                            });
-
-                            emojiconEditText.setText("");
-                            emojiconEditText.requestFocus();
-                        } else {
-                            hideNotify(R.string.notify_empty);
-                        }
-                    } else {
-                        Snackbar.make(activity_main, R.string.waiting_someone, Snackbar.LENGTH_SHORT).show();
-                    }
-                } else if (typeSendData == 1) {
-                    Calendar calendar = Calendar.getInstance();
-
-                    // Create a reference to "mountains.jpg"
-                    StorageReference mountainsRef = storageRef.child("image"+calendar.getTimeInMillis()+".png");
-
-                    // Get the data from an ImageView as bytes
-                    imgChooseImage.setDrawingCacheEnabled(true);
-                    imgChooseImage.buildDrawingCache();
-                    Bitmap bitmap = imgChooseImage.getDrawingCache();
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, baos);
-                    byte[] data = baos.toByteArray();
-
-                    UploadTask uploadTask = mountainsRef.putBytes(data);
-                    uploadTask.addOnFailureListener(new OnFailureListener() {
-                        @Override
-                        public void onFailure(@NonNull Exception exception) {
-                            // Handle unsuccessful uploads
-                            Toast.makeText(MainActivity.this, "Error send image", Toast.LENGTH_SHORT).show();
-                        }
-                    }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
-                        @Override
-                        public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                            // taskSnapshot.getMetadata() contains file metadata such as size, content-type, and download URL.
-                            Uri downloadUrl = taskSnapshot.getDownloadUrl();
-                            Toast.makeText(MainActivity.this, "Send image success", Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                }
-
-                break;
-            case R.id.imageViewSendCamera:
-                typeSendData = 1;
-                Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                startActivityForResult(intent, REQUEST_CODE_CAMERA);
-
-
-                break;
-        }
-    }
-
-    public void hideNotify(int notify) {
-        tvNotify.setText(notify);
-        countDownTimer = new CountDownTimer(2000, 1000) {
-            @Override
-            public void onTick(long l) {
-
-            }
-
-            @Override
-            public void onFinish() {
-                tvNotify.setText("");
-            }
-        }.start();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        exitApp();
-    }
-
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-        if (id == R.id.action_exit_chat) {
-            exitApp();
-
-        }
-
-        return true;
     }
 
     @Override
@@ -743,7 +909,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         emojIconActions.ShowEmojicon();
 
         // get extra
-        Intent intent = getIntent();
+        intent = getIntent();
         if (intent.hasExtra("id")) {
             account = new Account();
             account.setId(intent.getStringExtra("id"));
@@ -752,6 +918,47 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             account.setChat(intent.getBooleanExtra("ischat", false));
         }
 
+
     }
 
+    public void hideNotify(int notify) {
+        tvNotify.setText(notify);
+        countDownTimer = new CountDownTimer(2000, 1000) {
+            @Override
+            public void onTick(long l) {
+
+            }
+
+            @Override
+            public void onFinish() {
+                tvNotify.setText("");
+            }
+        }.start();
+    }
+
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        int id = item.getItemId();
+        if (id == R.id.action_exit_chat) {
+            exitApp();
+        }
+        if (id == R.id.action_add_friend) {
+            if (isFriend)
+                Toast.makeText(MainActivity.this, R.string.become_friend, Toast.LENGTH_SHORT).show();
+            else sendRequestFriend();
+        }
+
+        return true;
+    }
 }

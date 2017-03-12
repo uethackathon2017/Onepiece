@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -18,9 +19,15 @@ import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -28,19 +35,26 @@ import com.firebase.ui.auth.AuthUI;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.ChildEventListener;
+import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
+import java.util.ArrayList;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
+import chat.hdd.smartbird.whoareyou.Controller.Adapter_Friend;
 import chat.hdd.smartbird.whoareyou.Model.Account;
+import chat.hdd.smartbird.whoareyou.Model.Friend;
 import chat.hdd.smartbird.whoareyou.R;
 import de.hdodenhof.circleimageview.CircleImageView;
 
-import static android.R.attr.id;
 import static chat.hdd.smartbird.whoareyou.Activity.MainActivity.ACCOUNT;
+import static chat.hdd.smartbird.whoareyou.Activity.MainActivity.FRIEND;
 import static chat.hdd.smartbird.whoareyou.Activity.MainActivity.SIGN_IN_REQUEST_CODE;
 
 public class UserActivity extends AppCompatActivity {
@@ -60,6 +74,16 @@ public class UserActivity extends AppCompatActivity {
     Button btChatNow;
     @Bind(R.id.imageViewChoosePicture)
     ImageView imgChoosePicture;
+    @Bind(R.id.listViewFriend)
+    ListView lvFriend;
+    @Bind(R.id.textViewNumberFriend)
+    TextView tvNumberFriend;
+    @Bind(R.id.frameLayoutFindFriend)
+    FrameLayout frListFriend;
+    @Bind(R.id.frameLayoutFindFriend1)
+    FrameLayout frFindFriend;
+    @Bind(R.id.frameLayoutBackground)
+    FrameLayout frBackground;
 
 
     private boolean isDoubleBackToExit = false;
@@ -67,6 +91,13 @@ public class UserActivity extends AppCompatActivity {
     private SharedPreferences sharedPreferences;
     private SharedPreferences.Editor editor;
     private String filemanagerstring, imagePath, selectedImagePath;
+    private Adapter_Friend adapter_friend;
+    private ArrayList<Friend> listFriend = new ArrayList<Friend>();
+    private Typeface typeface, typeface1;
+    private CountDownTimer countDownTimer;
+
+    private int numberFriend = 10000;
+    private boolean isFindFriend = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,6 +107,8 @@ public class UserActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbarUser);
         setSupportActionBar(toolbar);
         getSupportActionBar().setTitle(R.string.app_name);
+
+        frListFriend.setVisibility(View.INVISIBLE);
 
 
         if (FirebaseAuth.getInstance().getCurrentUser() == null) {
@@ -88,12 +121,53 @@ public class UserActivity extends AppCompatActivity {
             signInAccount();
         }
 
+        typeface = Typeface.createFromAsset(getAssets(), "miso-bold.otf");
+        typeface1 = Typeface.createFromAsset(getAssets(), "miso-bold.otf");
+
+        btChatNow.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View view, MotionEvent motionEvent) {
+
+                if (motionEvent.getAction() == MotionEvent.ACTION_DOWN) {
+                    view.animate().scaleX(1.2f);
+                    view.animate().scaleY(1.2f);
+                } else if (motionEvent.getAction() == MotionEvent.ACTION_UP) {
+
+                    view.animate().scaleX(1.0f);
+                    view.animate().scaleY(1.0f);
+                    Intent intent = new Intent(UserActivity.this, MainActivity.class);
+                    intent.putExtra("id", account.getId());
+                    intent.putExtra("email", account.getEmail());
+                    intent.putExtra("name", account.getName());
+                    intent.putExtra("ischat", account.isChat());
+
+
+                    if (listFriend.size() == 1) {
+                        intent.putExtra("friend_1", listFriend.get(0).getIdFriend());
+                    } else if (listFriend.size() > 1) {
+                        String idFriend = "";
+                        for (int i = 0; i < listFriend.size(); i++) {
+                            idFriend = idFriend + "-" + listFriend.get(i).getIdFriend();
+                        }
+                        intent.putExtra("friend_2", idFriend);
+                    }
+
+                    startActivity(intent);
+                    finish();
+                }
+                return false;
+            }
+
+        });
+        btChatNow.setTypeface(typeface);
+
+        Animation scale = AnimationUtils.loadAnimation(UserActivity.this, R.anim.scale);
+        btChatNow.setAnimation(scale);
+
 
     }
 
     private void signInAccount() {
-
-
         account = new Account(FirebaseAuth.getInstance().getCurrentUser()
                 .getUid(), FirebaseAuth.getInstance().getCurrentUser().getEmail(), FirebaseAuth.getInstance().getCurrentUser().getDisplayName());
         account.setChat(true);
@@ -101,6 +175,8 @@ public class UserActivity extends AppCompatActivity {
 
         tvEmail.setText(account.getEmail());
         tvName.setText(account.getName());
+        tvName.setTypeface(typeface1);
+        tvEmail.setTypeface(typeface1);
 
         // push values
         FirebaseDatabase.getInstance().getReference().child(ACCOUNT).child(account.getId()).setValue(account, new DatabaseReference.CompletionListener() {
@@ -124,6 +200,77 @@ public class UserActivity extends AppCompatActivity {
             imgPictureUser.setImageResource(R.drawable.ic_none);
         }
 
+        // get friend
+        listFriend.clear();
+        FirebaseDatabase.getInstance().getReference().child(FRIEND).child(account.getId()).addChildEventListener(new ChildEventListener() {
+
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+                Friend friend = dataSnapshot.getValue(Friend.class);
+                listFriend.add(friend);
+                Log.d("friend", listFriend.size() + " : " + friend.getNameFriend());
+
+
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+
+        FirebaseDatabase.getInstance().getReference().child(FRIEND).child(account.getId()).addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                tvNumberFriend.setText("You have " + dataSnapshot.getChildrenCount() + " friend");
+                tvNumberFriend.setTypeface(typeface);
+                numberFriend = (int) dataSnapshot.getChildrenCount();
+
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+
+        final int[] time = {3000};
+        countDownTimer = new CountDownTimer(time[0], 1000) {
+            @Override
+            public void onTick(long l) {
+                time[0] = time[0] - 1000;
+                Log.d("numberfriend", numberFriend + " : " + listFriend.size());
+            }
+
+            @Override
+            public void onFinish() {
+                if (listFriend.size() != numberFriend) {
+                    time[0] = 3000;
+                    countDownTimer.start();
+                } else {
+                    adapter_friend = new Adapter_Friend(UserActivity.this, R.layout.list_friend_item, listFriend);
+                    lvFriend.setAdapter(adapter_friend);
+                    for (int i = 0; i < listFriend.size(); i++) {
+                        Log.d("numberfriend", listFriend.get(i).getNameFriend());
+                    }
+                }
+            }
+        }.start();
     }
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
@@ -190,16 +337,6 @@ public class UserActivity extends AppCompatActivity {
     }
 
 
-    @OnClick(R.id.buttonChatNow)
-    public void chatNow() {
-        Intent intent = new Intent(UserActivity.this, MainActivity.class);
-        intent.putExtra("id", account.getId());
-        intent.putExtra("email", account.getEmail());
-        intent.putExtra("name", account.getName());
-        intent.putExtra("ischat", account.isChat());
-        startActivity(intent);
-    }
-
     @OnClick(R.id.imageViewChoosePicture)
     public void choosePicture() {
 
@@ -233,24 +370,40 @@ public class UserActivity extends AppCompatActivity {
         }
     }
 
+    @OnClick(R.id.frameLayoutFindFriend1)
+    public void showListFriend() {
+        frListFriend.setVisibility(View.VISIBLE);
+        isFindFriend = true;
+    }
+    @OnClick(R.id.frameLayoutBackground)
+    public void hideListFriend() {
+        frListFriend.setVisibility(View.INVISIBLE);
+        isFindFriend = false;
+    }
+
     @Override
     public void onBackPressed() {
-        if (isDoubleBackToExit) {
-            super.onBackPressed();
+        if (isFindFriend) {
+            frListFriend.setVisibility(View.INVISIBLE);
+            isFindFriend = false;
         } else {
-            this.isDoubleBackToExit = true;
-            Toast.makeText(UserActivity.this, "double click to exit", Toast.LENGTH_SHORT).show();
-            CountDownTimer countDownTimer = new CountDownTimer(2000, 1000) {
-                @Override
-                public void onTick(long l) {
+            if (isDoubleBackToExit) {
+                super.onBackPressed();
+            } else {
+                this.isDoubleBackToExit = true;
+                Toast.makeText(UserActivity.this, "double click to exit", Toast.LENGTH_SHORT).show();
+                CountDownTimer countDownTimer = new CountDownTimer(2000, 1000) {
+                    @Override
+                    public void onTick(long l) {
 
-                }
+                    }
 
-                @Override
-                public void onFinish() {
-                    isDoubleBackToExit = false;
-                }
-            }.start();
+                    @Override
+                    public void onFinish() {
+                        isDoubleBackToExit = false;
+                    }
+                }.start();
+            }
         }
     }
 
